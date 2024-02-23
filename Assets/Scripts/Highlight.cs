@@ -23,20 +23,10 @@ public class Highlight: MonoBehaviour
     Queue<EyeTrackingPoint> fixationPoints = new Queue<EyeTrackingPoint>();
     Queue<EyeTrackingPoint> saccadePoints = new Queue<EyeTrackingPoint>();
     
-    private string eyeTrackingPointsFile;
-    private string saccadePointsFile;
-    private string fixationPointsFile;
-    private string ivtDataFile;
     
     private void Start()
     {
         eyeGaze = GetComponent<OVREyeGaze>();
-        eyeTrackingPointsFile = Path.Combine(UnityEngine.Application.persistentDataPath, "eye-tracking data points.txt");
-        fixationPointsFile = Path.Combine(UnityEngine.Application.persistentDataPath, "fixation data points.txt");
-        saccadePointsFile = Path.Combine(UnityEngine.Application.persistentDataPath, "saccade data points.txt");
-        ivtDataFile= Path.Combine(UnityEngine.Application.persistentDataPath, "ivtData.txt");
-
-
     }
 
     void Update()
@@ -100,22 +90,27 @@ public class Highlight: MonoBehaviour
         //}
         
         // iv-t algorithm 
-        WriteData(eyeTrackingPoints, eyeTrackingPointsFile);
+
+        WriteData(eyeTrackingPoints, "eyeTrackingPoints");
         ivtAlgorithm(eyeTrackingPoints);
-        WriteData(saccadePoints, saccadePointsFile);
-        WriteData(fixationPoints, fixationPointsFile);
+        WriteData(saccadePoints, "saccadePoint");
+        WriteData(fixationPoints, "fixationPoints");
     }
     
-    public void WriteTextToFile(string text, string path)
+    public void WriteTextToFile(string text, string fileName)
     {
+        string path = Path.Combine(UnityEngine.Application.persistentDataPath, fileName + ".txt");
+
         using (StreamWriter writer = new StreamWriter(path, true))
         {
             writer.WriteLine(text);
         }
     }
     
-    public void WriteData(Queue<EyeTrackingPoint> data, string path)
+    public void WriteData(IEnumerable<EyeTrackingPoint> data, string fileName)
     {
+        string path = Path.Combine(UnityEngine.Application.persistentDataPath, fileName + ".txt");
+        
         foreach (EyeTrackingPoint e in data)
         {
             StringBuilder sb = new StringBuilder();
@@ -124,11 +119,18 @@ public class Highlight: MonoBehaviour
             sb.AppendLine("Tag: " + e.Tagname);
             
             string finalString = sb.ToString();
-            WriteTextToFile(finalString, path);
+
+            using (StreamWriter writer = new StreamWriter(path, true))
+            {
+                writer.WriteLine(finalString);
+            }
             //WriteTextToFile(e.Timestamp.ToString(), eyeTrackingPointsFile);
         }
-        
+
     }
+    //public void WriteData(Queue<EyeTrackingPoint> data, string fileName)
+    //{
+    //}
 
     public void ivtAlgorithm(Queue<EyeTrackingPoint> originalQueue)
     {
@@ -147,7 +149,7 @@ public class Highlight: MonoBehaviour
                 EyeTrackingPoint current = originalQueue.Dequeue();
                 tempQueue.Enqueue(current);
 
-                // TODO: should not be position, should be (position - origin) instead.
+                // NOTE: should not be position, should be (position - origin) instead.
                 //float anglePoint = CalculateAngle(current.Position, prev.Position);
                 //Debug.Log("angle between points: " + anglePoint);
                 float angle = CalculateAngle(current.GazeVector, prev.GazeVector);
@@ -155,15 +157,15 @@ public class Highlight: MonoBehaviour
                 float timeDifference = current.Timestamp - prev.Timestamp;
                 //Debug.Log("timeDifference: " + timeDifference);
                 float angularVelocity = angle / timeDifference;
-                //Debug.Log("Current Time: " + Time.time);
+                // FIXME: system time? since application is on?
+                //ebug.Log("Current Time: " + Time.time);
                 
-                // TODO: system time? since application is on?
                 //sb.AppendLine("Current Time: " + Time.time);
                 sb.AppendLine("TimeStamp: " + current.Timestamp);
                 sb.AppendLine("Angle: " + angle);
                 sb.AppendLine("Velocity: " + angularVelocity);
                 
-                // hardcoded, value suggested by the paper
+                // NOTE: hardcoded, value suggested by the paper
                 if (angularVelocity > 20)
                 {
                     saccadePoints.Enqueue(current);
@@ -177,7 +179,8 @@ public class Highlight: MonoBehaviour
                     sb.AppendLine("Fixation Point");
                 }
                 string finalString = sb.ToString();
-                WriteTextToFile(finalString, ivtDataFile);
+                WriteTextToFile(finalString, "ivt_data" + ".txt");
+                
             }
         }
     }
@@ -198,8 +201,13 @@ public class Highlight: MonoBehaviour
 
         return angleDegrees;
     }
+    public void filter()
+    {
+        
+    }
 
 }
+
 
 public struct EyeTrackingPoint
 {
